@@ -57,6 +57,12 @@
 
 ## 🧪 .env Setup
 
+### Frontend (`/frontend`)
+
+```
+VITE_STREAM_API_KEY=your_steam_api_key
+```
+
 ### Backend (`/backend`)
 
 ```
