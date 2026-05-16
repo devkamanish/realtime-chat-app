@@ -1,4 +1,3 @@
-import React from 'react'
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import {
@@ -10,15 +9,13 @@ import {
 import { Link } from "react-router";
 import { CheckCircleIcon, MapPinIcon, UserPlusIcon, UsersIcon } from "lucide-react";
 
-import capitialize from '../lib/utils';
+import capitialize, { getLanguageFlag } from '../lib/utils';
 
-import FriendCard, { getLanguageFlag } from "../components/FriendCard";
+import FriendCard from "../components/FriendCard";
 import NoFriendsFound from "../components/NoFriendsFound";
 
-// fucntion
 const HomePage = () => {
-
-const queryClient = useQueryClient();
+  const queryClient = useQueryClient();
   const [outgoingRequestsIds, setOutgoingRequestsIds] = useState(new Set());
 
   const { data: friends = [], isLoading: loadingFriends } = useQuery({
@@ -45,7 +42,6 @@ const queryClient = useQueryClient();
     const outgoingIds = new Set();
     if (outgoingFriendReqs && outgoingFriendReqs.length > 0) {
       outgoingFriendReqs.forEach((req) => {
-        console.log(req);
         outgoingIds.add(req.recipient._id);
       });
       setOutgoingRequestsIds(outgoingIds);
@@ -77,15 +73,14 @@ const queryClient = useQueryClient();
           </div>
         )}
 
-        <section>
-          <div className="mb-6 sm:mb-8">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div>
-                <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Meet New Learners</h2>
-                <p className="opacity-70">
-                  Discover perfect language exchange partners based on your profile
-                </p>
-              </div>
+        {/* Meet New Learners */}
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Meet New Learners</h2>
+              <p className="opacity-70">
+                Discover perfect language exchange partners based on your profile
+              </p>
             </div>
           </div>
 
@@ -112,7 +107,7 @@ const queryClient = useQueryClient();
                   >
                     <div className="card-body p-5 space-y-4">
                       <div className="flex items-center gap-3">
-                        <div className="avatar size-16 rounded-full">
+                        <div className="avatar size-16 rounded-full overflow-hidden">
                           <img src={user.profilePic} alt={user.fullName} />
                         </div>
 
@@ -167,7 +162,7 @@ const queryClient = useQueryClient();
               })}
             </div>
           )}
-        </section>
+        </div>
       </div>
     </div>
   );

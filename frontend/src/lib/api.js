@@ -71,3 +71,14 @@ export async function getStreamToken() {
   const response = await axiosInstance.get("/chat/token");
   return response.data;
 }
+
+// Secure video call APIs
+export async function createVideoCall(friendId) {
+  const response = await axiosInstance.post(`/chat/call/${friendId}`);
+  return response.data;
+}
+
+export async function validateVideoCall(callId) {
+  const response = await axiosInstance.get(`/chat/call/${callId}/validate`);
+  return response.data;
+}

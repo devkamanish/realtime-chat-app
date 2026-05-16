@@ -36,7 +36,7 @@
 
 
 <p align="center">
-  <img src="frontend/public/SignupPafge.png" alt="SVG Screenshot" height="500"width="900" />
+  <img src="frontend/public/SignupPage.png" alt="SVG Screenshot" height="500"width="900" />
 </p>
 
 
@@ -51,13 +51,7 @@
 <h2 align="center">Chat Page</h2>
 
 <p align="center">
-  <img src="frontend/public/chatPage.png" alt="SVG Screenshot" height="500"width="900" />
-</p>
-
-<h2 align="center">Call Page</h2>
-
-<p align="center">
-  <img src="frontend/public/callPage.png" alt="SVG Screenshot" height="500"width="900" />
+  <img src="frontend/public/ChatPage.png" alt="SVG Screenshot" height="500"width="900" />
 </p>
 
 

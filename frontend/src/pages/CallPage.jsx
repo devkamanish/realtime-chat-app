@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import useAuthUser from "../hooks/useAuthUser";
 import { useQuery } from "@tanstack/react-query";
-import { getStreamToken } from "../lib/api";
+import { getStreamToken, validateVideoCall } from "../lib/api";
 
 import {
   StreamVideo,
@@ -22,7 +22,8 @@ import PageLoader from "../components/PageLoader";
 const STREAM_API_KEY = import.meta.env.VITE_STREAM_API_KEY;
 
 const CallPage = () => {
-   const { id: callId } = useParams();
+  const { id: callId } = useParams();
+  const navigate = useNavigate();
   const [client, setClient] = useState(null);
   const [call, setCall] = useState(null);
   const [isConnecting, setIsConnecting] = useState(true);
@@ -35,12 +36,15 @@ const CallPage = () => {
     enabled: !!authUser,
   });
 
- useEffect(() => {
+  useEffect(() => {
     const initCall = async () => {
-      if (!tokenData.token || !authUser || !callId) return;
+      if (!tokenData?.token || !authUser || !callId) return;
 
       try {
-        console.log("Initializing Stream video client...");
+        // Step 1: Validate the call via backend before connecting
+        await validateVideoCall(callId);
+
+        console.log("Call validated. Initializing Stream video client...");
         const user = {
           id: authUser._id,
           name: authUser.fullName,
@@ -63,14 +67,18 @@ const CallPage = () => {
         setCall(callInstance);
       } catch (error) {
         console.error("Error joining call:", error);
-        toast.error("Could not join the call. Please try again.");
+        const message =
+          error?.response?.data?.message ||
+          "Could not join the call. It may have expired or you are not authorized.";
+        toast.error(message);
+        navigate("/");
       } finally {
         setIsConnecting(false);
       }
     };
 
     initCall();
-  }, [tokenData, authUser, callId]);
+  }, [tokenData, authUser, callId, navigate]);
 
   if (isLoading || isConnecting) return <PageLoader />;
 

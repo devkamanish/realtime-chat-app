@@ -28,8 +28,8 @@ export async function signup(req, res) {
         .status(400)
         .json({ message: "User already exists please use diffrenet  account" });
     }
-    const idx = Math.floor(Math.random() * 100) + 1;
-    const randomAvatar = `https://avatar.iran.liara.run/public/${idx}.png`; // Random avatar URL
+    const seed = Date.now().toString(36) + Math.random().toString(36).substr(2);
+    const randomAvatar = `https://api.dicebear.com/9.x/avataaars/svg?seed=${seed}`;
 
     const newUser = await User.create({
       fullName,
