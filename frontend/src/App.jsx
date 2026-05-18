@@ -13,6 +13,7 @@ import PageLoader from './components/PageLoader.jsx';
 import useAuthUser from './hooks/useAuthUser.js';
 import Layout from "./components/Layout.jsx"
 import { useThemeStore } from './store/useThemeStore.js';
+import { StreamClientProvider } from './providers/StreamClientProvider.jsx';
 
 const App = () => {
   const { isLoading, authUser } = useAuthUser();
@@ -29,6 +30,7 @@ const App = () => {
 
   return (
     <div className="min-h-screen" data-theme={theme}>
+      <StreamClientProvider>
       <Routes>
         <Route
           path="/"
@@ -143,6 +145,7 @@ const App = () => {
           }
         />
       </Routes>
+      </StreamClientProvider>
       <Toaster />
     </div>
   );

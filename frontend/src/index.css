@@ -57,6 +57,17 @@ body,
   color: oklch(var(--bc)) !important;
 }
 
+/* Position emoji reactions below the message */
+.str-chat__message-simple {
+  margin-bottom: 24px !important; /* Make room for reactions at the bottom */
+}
+
+.str-chat__message-reactions-container {
+  top: auto !important;
+  bottom: -15px !important;
+  z-index: 10 !important;
+}
+
 /* Channel preview */
 .str-chat__channel-preview-messenger--active {
   background: oklch(var(--b3)) !important;

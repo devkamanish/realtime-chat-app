@@ -2,93 +2,49 @@ import { useEffect, useState, useCallback } from "react";
 import { useNavigate, useParams } from "react-router";
 import useAuthUser from "../hooks/useAuthUser";
 import { useQuery } from "@tanstack/react-query";
-import { getStreamToken, getUserFriends, createVideoCall } from "../lib/api";
+import { getUserFriends } from "../lib/api";
 
 import {
   Channel,
-  ChannelHeader,
   Chat,
   MessageInput,
   MessageList,
   Thread,
-  Window,
+  Window
 } from "stream-chat-react";
-import { StreamChat } from "stream-chat";
+import { useStreamVideoClient } from "@stream-io/video-react-sdk";
+import { useStreamChatClient } from "../providers/StreamClientProvider";
 import "stream-chat-react/dist/css/v2/index.css";
 
 import toast from "react-hot-toast";
 import {
   MessageSquareIcon,
   LoaderIcon,
-  ArrowLeftIcon,
 } from "lucide-react";
 
-import CallButton from "../components/CallButton";
-import FriendCard from "../components/FriendCard";
 
-const STREAM_API_KEY = import.meta.env.VITE_STREAM_API_KEY;
+import FriendCard from "../components/FriendCard";
+import CustomChannelHeader from "../components/CustomChannelHeader";
+import PinnedMessages from "../components/PinnedMessages";
 
 const ChatsPage = () => {
   const { id: activeFriendId } = useParams();
   const navigate = useNavigate();
 
-  const [chatClient, setChatClient] = useState(null);
+  const chatClient = useStreamChatClient();
+  const videoClient = useStreamVideoClient();
+
   const [activeChannel, setActiveChannel] = useState(null);
   const [loadingChat, setLoadingChat] = useState(false);
 
   const { authUser } = useAuthUser();
-
-  const { data: tokenData } = useQuery({
-    queryKey: ["streamToken"],
-    queryFn: getStreamToken,
-    enabled: !!authUser,
-  });
 
   const { data: friends = [], isLoading: loadingFriends } = useQuery({
     queryKey: ["friends"],
     queryFn: getUserFriends,
   });
 
-  // Initialize Stream Chat client once
-  useEffect(() => {
-    let isMounted = true;
-    const initClient = async () => {
-      if (!tokenData?.token || !authUser) return;
-
-      try {
-        const client = StreamChat.getInstance(STREAM_API_KEY);
-
-        if (client.userID === authUser._id) {
-          if (isMounted) setChatClient(client);
-          return;
-        }
-
-        if (client.userID) {
-          await client.disconnectUser();
-        }
-
-        await client.connectUser(
-          {
-            id: authUser._id,
-            name: authUser.fullName,
-            image: authUser.profilePic,
-          },
-          tokenData.token
-        );
-
-        if (isMounted) setChatClient(client);
-      } catch (error) {
-        console.error("Error initializing chat client:", error);
-        if (isMounted) toast.error("Could not connect to chat.");
-      }
-    };
-
-    initClient();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [tokenData, authUser]);
+  // Chat client is now initialized globally, no need for local useEffect
 
   // Open channel when a friend is selected
   const openChannel = useCallback(
@@ -121,34 +77,41 @@ const ChatsPage = () => {
     }
   }, [activeFriendId, chatClient, openChannel]);
 
-  const handleVideoCall = async () => {
-    if (!activeChannel || !activeFriendId) return;
+  const handleCall = async (type) => {
+    if (!activeFriendId || !videoClient || !authUser) return;
 
     try {
-      const { callId } = await createVideoCall(activeFriendId);
-      const callUrl = `${window.location.origin}/call/${callId}`;
+      const callId = crypto.randomUUID();
+      const call = videoClient.call("default", callId);
 
-      await activeChannel.sendMessage({
-        text: `📹 Video Call`,
-        attachments: [
-          {
-            type: "video-call",
-            callId: callId,
-            callUrl: callUrl,
-            title: "Video Call",
-            text: "Click to join the video call",
+      await call.getOrCreate({
+        ring: true,
+        data: {
+          members: [
+            { user_id: authUser._id },
+            { user_id: activeFriendId },
+          ],
+          custom: {
+            callType: type,            // "audio" or "video"
+            friendId: activeFriendId,  // used by CallPage to navigate back
           },
-        ],
+        },
       });
+
+      // For audio calls, disable camera before navigating
+      if (type === "audio") {
+        await call.camera.disable();
+      }
 
       navigate(`/call/${callId}`);
     } catch (error) {
-      console.error("Error creating video call:", error);
-      const message =
-        error?.response?.data?.message || "Could not start video call.";
-      toast.error(message);
+      console.error("Error creating call:", error);
+      toast.error("Could not start call. Please try again.");
     }
   };
+
+  const handleVideoCall = () => handleCall("video");
+  const handleAudioCall = () => handleCall("audio");
 
   // --- NO FRIEND SELECTED: show friend list like FriendsPage ---
   if (!activeFriendId) {
@@ -200,26 +163,22 @@ const ChatsPage = () => {
 
   return (
     <div className="h-[calc(100vh-4rem)] flex flex-col">
-      {/* Back button */}
-      <div className="px-4 py-2 border-b border-base-300 bg-base-200 flex items-center gap-3">
-        <button
-          onClick={() => navigate("/chats")}
-          className="btn btn-ghost btn-sm btn-circle"
-        >
-          <ArrowLeftIcon className="size-5" />
-        </button>
-        <span className="font-semibold text-sm opacity-70">Back to Chats</span>
-      </div>
-
       {/* Chat interface */}
       <div className="flex-1 overflow-hidden">
         <Chat client={chatClient}>
           <Channel channel={activeChannel}>
-            <div className="w-full relative h-full flex flex-col">
-              <CallButton handleVideoCall={handleVideoCall} />
+            <div className="w-full h-full flex flex-col">
               <Window>
-                <ChannelHeader />
-                <MessageList />
+                <CustomChannelHeader
+                  friend={friends.find(f => f._id === activeFriendId)}
+                  onBack={() => navigate("/chats")}
+                  handleVideoCall={handleVideoCall}
+                  handleAudioCall={handleAudioCall}
+                />
+                <PinnedMessages />
+                <MessageList
+                  messageActions={['edit', 'delete', 'quote', 'reply', 'react', 'pinMessage']}
+                />
                 <MessageInput focus />
               </Window>
             </div>
