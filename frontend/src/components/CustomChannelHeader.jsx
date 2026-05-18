@@ -1,5 +1,6 @@
-import { useChannelStateContext } from "stream-chat-react";
+import { useChannelStateContext, useChatContext } from "stream-chat-react";
 import { ArrowLeftIcon, PhoneIcon, VideoIcon } from "lucide-react";
+import { useEffect, useState } from "react";
 
 /**
  * Unified chat header: back button, avatar, name/status, AND call buttons
@@ -7,13 +8,30 @@ import { ArrowLeftIcon, PhoneIcon, VideoIcon } from "lucide-react";
  */
 const CustomChannelHeader = ({ friend, onBack, handleVideoCall, handleAudioCall }) => {
   const { channel } = useChannelStateContext();
+  const { client } = useChatContext();
+  const [isOnline, setIsOnline] = useState(false);
 
-  if (!friend) return null;
+  useEffect(() => {
+    if (!friend || !channel) return;
 
-  // Real-time online status from Stream channel state
-  const members = Object.values(channel?.state?.members || {});
-  const friendMember = members.find((m) => m.user?.id === friend._id);
-  const isOnline = friendMember?.user?.online ?? false;
+    // Set initial status
+    const members = Object.values(channel?.state?.members || {});
+    const friendMember = members.find((m) => m.user?.id === friend._id);
+    setIsOnline(friendMember?.user?.online ?? false);
+
+    // Listen for presence changes in real-time
+    const handlePresenceChange = (event) => {
+      if (event.user?.id === friend._id) {
+        setIsOnline(event.user.online);
+      }
+    };
+
+    client.on("user.presence.changed", handlePresenceChange);
+
+    return () => {
+      client.off("user.presence.changed", handlePresenceChange);
+    };
+  }, [friend, channel, client]);
 
   return (
     <div className="flex items-center gap-3 px-3 py-2 border-b border-base-300 bg-base-100 w-full shrink-0">

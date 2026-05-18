@@ -11,6 +11,7 @@ import {
   CallingState,
   useCallStateHooks,
   useCall,
+  ParticipantView,
 } from "@stream-io/video-react-sdk";
 
 import "@stream-io/video-react-sdk/dist/css/styles.css";
@@ -150,7 +151,11 @@ const CallUI = ({ authUser, hasLeft, callTypeRef, returnFriendIdRef }) => {
     if (call) {
       try { call.camera.disable(); } catch (_) {}
       try { call.microphone.disable(); } catch (_) {}
-      try { await call.leave(); } catch (_) {}
+      // endCall() terminates the call for EVERYONE, ensuring instant redirect for the receiver
+      try { await call.endCall(); } catch (_) {
+        // Fallback if they don't have permission to end
+        try { await call.leave(); } catch (_) {}
+      }
     }
 
     // Always go back to the friend's chat
@@ -213,14 +218,7 @@ const CallUI = ({ authUser, hasLeft, callTypeRef, returnFriendIdRef }) => {
   // ── Active video call (2+ participants) ──
   return (
     <StreamTheme>
-      <div className="h-screen flex flex-col bg-gray-900">
-        <div className="flex-1 min-h-0 overflow-hidden">
-          <SpeakerLayout participantsBarPosition="bottom" />
-        </div>
-        <div className="shrink-0">
-          <CallControls onLeave={handleLeave} />
-        </div>
-      </div>
+      <VideoCallLayout authUser={authUser} onLeave={handleLeave} />
     </StreamTheme>
   );
 };
@@ -273,9 +271,16 @@ const AudioCallLayout = ({ call, authUser, onLeave }) => {
   const callingState = useCallCallingState();
   const [muted, setMuted] = useState(false);
 
-  const remoteParticipants = participants.filter(
-    (p) => p.userId !== authUser._id
+  // Deduplicate remote participants just in case (e.g., zombie sessions)
+  const uniqueRemotes = Array.from(
+    new Map(
+      participants
+        .filter((p) => p.userId !== authUser._id)
+        .map((p) => [p.userId, p])
+    ).values()
   );
+
+  const remoteParticipants = uniqueRemotes.slice(0, 1); // Only ever show 1 friend
 
   const toggleMic = async () => {
     try {
@@ -291,7 +296,18 @@ const AudioCallLayout = ({ call, authUser, onLeave }) => {
   };
 
   return (
-    <div className="h-screen flex flex-col items-center justify-center bg-gray-900 gap-8 px-4">
+    <div className="h-screen flex flex-col items-center justify-center bg-gray-900 gap-8 px-4 relative">
+      
+      {/* 
+        CRITICAL: This invisible SpeakerLayout mounts the hidden <audio> tags via Stream SDK.
+        Without this, you will not hear the other person!
+      */}
+      <div className="absolute inset-0 pointer-events-none opacity-0 z-[-1] overflow-hidden w-[1px] h-[1px]">
+        <StreamTheme>
+          <SpeakerLayout />
+        </StreamTheme>
+      </div>
+
       {/* Remote participant avatars */}
       <div className="flex flex-wrap gap-6 justify-center">
         {remoteParticipants.map((p) => (
@@ -352,6 +368,56 @@ const AudioCallLayout = ({ call, authUser, onLeave }) => {
         >
           <PhoneOffIcon className="w-7 h-7 sm:w-8 sm:h-8 text-white" />
         </button>
+      </div>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────────────
+// Video call active layout — strict 1 local (PiP), 1 remote
+// ─────────────────────────────────────────────────────
+const VideoCallLayout = ({ authUser, onLeave }) => {
+  const { useParticipants } = useCallStateHooks();
+  const participants = useParticipants();
+
+  // Deduplicate remote participants just in case
+  const uniqueRemotes = Array.from(
+    new Map(
+      participants
+        .filter((p) => p.userId !== authUser._id)
+        .map((p) => [p.userId, p])
+    ).values()
+  );
+
+  const remoteParticipant = uniqueRemotes[0]; // Exactly 1 friend
+  const localParticipant = participants.find((p) => p.userId === authUser._id);
+
+  return (
+    <div className="relative h-screen w-screen bg-gray-900 overflow-hidden flex flex-col">
+      {/* Remote Participant (Main Full Screen) */}
+      <div className="flex-1 relative">
+        {remoteParticipant ? (
+          <ParticipantView
+            participant={remoteParticipant}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className="w-full h-full flex flex-col items-center justify-center text-white/50 bg-gray-800">
+            <p className="text-xl animate-pulse">Waiting for friend to join...</p>
+          </div>
+        )}
+
+        {/* Local Participant (PiP Bottom Right) */}
+        {localParticipant && (
+          <div className="absolute bottom-4 right-4 w-24 h-36 sm:w-48 sm:h-64 rounded-xl overflow-hidden shadow-2xl border-2 border-gray-700 z-10 bg-black">
+            <ParticipantView participant={localParticipant} />
+          </div>
+        )}
+      </div>
+
+      {/* Call Controls at the bottom */}
+      <div className="shrink-0 z-20 pb-4 pt-2 bg-gray-900">
+        <CallControls onLeave={onLeave} />
       </div>
     </div>
   );
